@@ -50,7 +50,7 @@
 ## 🖥️ Getting Started
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/poker-bluff.git
+git clone https://github.com/H0DI/poker-bluff.git
 cd poker-bluff
 npm install
 npm start
