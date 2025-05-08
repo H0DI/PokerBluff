@@ -60,20 +60,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🎨 Icon
-
-<p align="center">
-  <img src="assets/poker-chip.svg" width="80" alt="Poker Chip Icon"/>
-</p>
-
----
-
-## 📸 Add Your Own Screenshots
-
-- Place your screenshots in the `assets/` folder and update the image links above.
-
----
-
 ## 🤝 Contributing
 
 Pull requests welcome! For major changes, please open an issue first.
