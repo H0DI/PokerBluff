@@ -62,7 +62,7 @@ joinRoomBtn.addEventListener('click', () => {
     if (hasJoinedRoom) return;
     
     const joinSection = document.getElementById('join-section');
-    joinSection.style.display = 'block';
+    joinSection.classList.remove('hidden');
     createRoomBtn.disabled = true;
 });
 
@@ -125,6 +125,7 @@ socket.on('joinError', ({ message }) => {
 socket.on('playerJoined', ({ players, roomId }) => {
     hasJoinedRoom = true;
     if (roomId) currentRoom = roomId;
+    document.getElementById('room-id-display').textContent = currentRoom;
     updatePlayersList(players, document.getElementById('waiting-players-list'));
     document.getElementById('player-count').textContent = players.length;
     startGameBtn.disabled = players.length < 3;
@@ -137,6 +138,7 @@ socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
     updatePlayersList(players, document.getElementById('game-players-list'));
     updateTurnIndicator(currentTurn);
     isMyTurn = socket.id === currentTurn;
+    console.log('[gameStarted] My socket.id:', socket.id, 'currentTurn:', currentTurn, 'isMyTurn:', isMyTurn);
     lastDeclaredHand = null;
     updateButtonStates();
     if (isMyTurn) {
@@ -177,6 +179,7 @@ socket.on('handPlayed', ({ playerId, hand, nextTurn, players }) => {
     updatePlayersList(players, document.getElementById('game-players-list'));
     updateTurnIndicator(nextTurn);
     isMyTurn = socket.id === nextTurn;
+    console.log('[handPlayed] My socket.id:', socket.id, 'nextTurn:', nextTurn, 'isMyTurn:', isMyTurn);
     if (isMyTurn) {
         selectedHandType = null;
         selectedHandRank = null;
@@ -274,7 +277,10 @@ function showScreen(screen) {
 function updatePlayersList(players, targetList) {
     // Calculate total cards on table
     const totalCards = players.reduce((sum, p) => sum + (p.cardsCount || 0), 0);
-    let html = `<div class="table-cards-summary">Total cards on table: <b>${totalCards}</b></div>`;
+    // If in the collapsible, update the always-visible element
+    const totalCardsElem = document.getElementById('total-cards-always-visible');
+    if (totalCardsElem) totalCardsElem.textContent = `Total cards on table: ${totalCards}`;
+    let html = '';
     html += players.map(player => `
         <div class="player-item${player.cardsCount === 0 ? ' eliminated-player' : ''}" data-id="${player.id}">
             <span>${player.name}
@@ -323,41 +329,50 @@ function formatHand(hand) {
 
 function visualizeHandCards(hand) {
     if (!hand || typeof hand !== 'object') return '';
-    // Helper to get card HTML
-    const cardHtml = (rank) => `<div class='card visualized'>${rank}</div>`;
+    // Helper to get card HTML with color
+    const cardHtml = (rank, suit = '♠') => {
+        const isRed = suit === '♥' || suit === '♦';
+        return `<div class='card visualized' style='color:${isRed ? '#e74c3c' : '#222'}'>${rank}${suit}</div>`;
+    };
+    let cards = [];
+    const suit = '♠';
     if (hand.type === 'high_card' && hand.rank) {
-        return cardHtml(hand.rank);
+        cards = [[hand.rank, suit]];
     }
     if (hand.type === 'pair' && hand.rank) {
-        return cardHtml(hand.rank) + cardHtml(hand.rank);
+        cards = [[hand.rank, suit], [hand.rank, suit]];
     }
     if (hand.type === 'two_pairs' && hand.rank1 && hand.rank2) {
-        return cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank2) + cardHtml(hand.rank2);
+        cards = [[hand.rank1, suit], [hand.rank1, suit], [hand.rank2, suit], [hand.rank2, suit]];
     }
     if (hand.type === 'triple' && hand.rank) {
-        return cardHtml(hand.rank) + cardHtml(hand.rank) + cardHtml(hand.rank);
+        cards = [[hand.rank, suit], [hand.rank, suit], [hand.rank, suit]];
     }
     if (hand.type === 'triple_high' && hand.rank1 && hand.rank2) {
-        return cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank2);
+        cards = [[hand.rank1, suit], [hand.rank1, suit], [hand.rank1, suit], [hand.rank2, suit]];
     }
     if (hand.type === 'full_house' && hand.rank1 && hand.rank2) {
-        return cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank2) + cardHtml(hand.rank2);
+        cards = [[hand.rank1, suit], [hand.rank1, suit], [hand.rank1, suit], [hand.rank2, suit], [hand.rank2, suit]];
     }
     if (hand.type === 'quadra' && hand.rank) {
-        return cardHtml(hand.rank) + cardHtml(hand.rank) + cardHtml(hand.rank) + cardHtml(hand.rank);
+        cards = [[hand.rank, suit], [hand.rank, suit], [hand.rank, suit], [hand.rank, suit]];
     }
     if (hand.type === 'quadra_high' && hand.rank1 && hand.rank2) {
-        return cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank1) + cardHtml(hand.rank2);
+        cards = [[hand.rank1, suit], [hand.rank1, suit], [hand.rank1, suit], [hand.rank1, suit], [hand.rank2, suit]];
     }
-    return '';
+    // Render as a horizontal row of card divs
+    return `<div class='claimed-cards-container'>${cards.map(([r, s]) => cardHtml(r, s)).join('')}</div>`;
 }
 
 function updateLastPlay(playerId, hand) {
     const player = document.querySelector(`.player-item[data-id="${playerId}"]`);
     const playerName = player ? player.querySelector('span').textContent : 'Unknown';
     lastPlay.classList.remove('hidden');
-    lastPlay.querySelector('.card').innerHTML = visualizeHandCards(hand);
-    lastPlay.querySelector('.play-info').textContent = `${playerName} claimed:`;
+    // Clear and set the claimed hand container
+    lastPlay.innerHTML = `
+        ${visualizeHandCards(hand)}
+        <div class="play-info">${playerName} claimed:</div>
+    `;
     // Add animation class
     lastPlay.classList.add('bluff-called');
     setTimeout(() => lastPlay.classList.remove('bluff-called'), 500);
@@ -429,18 +444,18 @@ function showHandSelection() {
                 if (!typeObj) return '';
                 let html = '';
                 if (typeObj.ranks === 1) {
-                    html += `<div class='rank-select-label'>Select Rank:</div><div class='rank-select-grid'>` +
+                    html += `<div class='rank-select-grid'>` +
                         handRanks.map(rank => {
                             const isStronger = getHandStrength({ type: typeObj.key, rank }) > lastStrength;
                             return `<button class="hand-rank-option${selectedHandRank === rank ? ' selected' : ''}" data-rank="${rank}" ${isStronger ? '' : 'disabled style=\'opacity:0.5;cursor:not-allowed;\''}>${rank}</button>`;
                         }).join('') + `</div>`;
                 } else if (typeObj.ranks === 2) {
-                    html += `<div class='rank-select-label'>Select Rank 1:</div><div class='rank-select-grid'>` +
+                    html += `<div class='rank-select-grid'>` +
                         handRanks.map(rank => {
                             const isStronger = handRanks.some(rank2 => rank2 !== rank && getHandStrength({ type: typeObj.key, rank1: rank, rank2 }) > lastStrength);
                             return `<button class="hand-rank-option${selectedHandRank === rank ? ' selected' : ''}" data-rank="${rank}" data-ranknum="1" ${isStronger ? '' : 'disabled style=\'opacity:0.5;cursor:not-allowed;\''}>${rank}</button>`;
                         }).join('') + `</div>` +
-                        `<div class='rank-select-label'>Select Rank 2:</div><div class='rank-select-grid'>` +
+                        `<div class='rank-select-grid'>` +
                         handRanks.map(rank => {
                             const isStronger = handRanks.some(rank1 => rank1 !== rank && getHandStrength({ type: typeObj.key, rank1, rank2: rank }) > lastStrength);
                             return `<button class="hand-rank2-option${selectedHandRank2 === rank ? ' selected' : ''}" data-rank="${rank}" data-ranknum="2" ${isStronger ? '' : 'disabled style=\'opacity:0.5;cursor:not-allowed;\''}>${rank}</button>`;
@@ -542,4 +557,30 @@ function getHandStrength(hand) {
     return typeStrength * 10000;
 }
 
-// Initialize 
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('toggle-players-list');
+    const content = document.getElementById('players-list-section');
+    // Add total cards always visible
+    let totalCardsElem = document.getElementById('total-cards-always-visible');
+    if (!totalCardsElem && toggleBtn) {
+        totalCardsElem = document.createElement('span');
+        totalCardsElem.id = 'total-cards-always-visible';
+        totalCardsElem.className = 'total-cards-always-visible';
+        toggleBtn.parentNode.insertBefore(totalCardsElem, toggleBtn.nextSibling);
+    }
+    if (toggleBtn && content) {
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = content.classList.contains('hidden');
+            if (isHidden) {
+                content.classList.remove('hidden');
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleBtn.innerHTML = 'Hide Players ▲';
+            } else {
+                content.classList.add('hidden');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                toggleBtn.innerHTML = 'Show Players ▼';
+            }
+        });
+    }
+}); 

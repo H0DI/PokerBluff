@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2c3e50">
     <title>Poker Bluff</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -18,7 +19,7 @@
                     <button id="create-room">Create Room</button>
                     <button id="join-room">Join Room</button>
                 </div>
-                <div id="join-section">
+                <div id="join-section" class="hidden">
                     <input type="text" id="room-id" placeholder="Enter room ID">
                     <button id="join-game">Join Game</button>
                 </div>
@@ -40,14 +41,16 @@
         <div id="game-screen" class="screen hidden">
             <div class="game-header">
                 <h2>Poker Bluff</h2>
+                <div id="players-list-collapsible" class="collapsible">
+                    <button id="toggle-players-list" class="collapsible-toggle">Show Players ▼</button>
+                    <div id="players-list-section" class="collapsible-content hidden">
+                        <h3 class="players-list-heading">Players</h3>
+                        <div id="game-players-list"></div>
+                    </div>
+                </div>
                 <div class="turn-indicator">Current Turn: <span id="current-player"></span></div>
             </div>
             <div class="game-board">
-                <div id="players-list-section">
-                    <h3 class="players-list-heading">Players</h3>
-                    <div id="game-players-list"></div>
-                </div>
-                <div id="opponents" class="opponents-container"></div>
                 <div class="center-area">
                     <div id="last-play" class="last-play hidden">
                         <div class="card"></div>
@@ -57,8 +60,10 @@
                 <div class="player-area">
                     <div id="player-cards" class="cards-container"></div>
                     <div class="player-controls">
-                        <button id="play-hand" disabled>Play Hand</button>
-                        <button id="call-bluff" disabled>Call Bluff</button>
+                        <div class="button-group">
+                            <button id="play-hand" disabled>Play Hand</button>
+                            <button id="call-bluff" disabled>Call Bluff</button>
+                        </div>
                     </div>
                 </div>
             </div>
