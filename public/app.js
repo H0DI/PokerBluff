@@ -87,6 +87,7 @@ startGameBtn.addEventListener('click', () => {
 });
 
 playHandBtn.addEventListener('click', () => {
+    playHandSound();
     const typeObj = handTypes.find(t => t.key === selectedHandType);
     if (!typeObj) return;
     if (typeObj.ranks === 1 && isMyTurn && selectedHandType && selectedHandRank) {
@@ -103,6 +104,7 @@ playHandBtn.addEventListener('click', () => {
 });
 
 callBluffBtn.addEventListener('click', () => {
+    playBluffSound();
     socket.emit('callBluff', { roomId: currentRoom });
 });
 
@@ -143,7 +145,10 @@ socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
     updateTurnIndicator(currentTurn);
     isMyTurn = socket.id === currentTurn;
     console.log('[gameStarted] My socket.id:', socket.id, 'currentTurn:', currentTurn, 'isMyTurn:', isMyTurn);
+    // Always clear last claimed hand and reset lastDeclaredHand at the start of a new round
     lastDeclaredHand = null;
+    lastPlay.classList.add('hidden');
+    lastPlay.innerHTML = '';
     updateButtonStates();
     stopTurnTimer();
     startTurnTimer(isMyTurn);
@@ -634,14 +639,50 @@ function getHandStrength(hand) {
     return typeStrength * 10000;
 }
 
+function playHandSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((freq, i) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.value = freq;
+            g.gain.value = 0.13;
+            o.connect(g).connect(ctx.destination);
+            o.start(ctx.currentTime + i * 0.07);
+            o.stop(ctx.currentTime + i * 0.07 + 0.18);
+        });
+        setTimeout(() => ctx.close(), 350);
+    } catch (e) {}
+}
+
+function playBluffSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const freqs = [392, 523.25, 659.25]; // G4, C5, E5 (a major chord)
+        freqs.forEach((freq) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'triangle';
+            o.frequency.value = freq;
+            g.gain.value = 0.11;
+            o.connect(g).connect(ctx.destination);
+            o.start(ctx.currentTime);
+            o.stop(ctx.currentTime + 0.22);
+        });
+        setTimeout(() => ctx.close(), 250);
+    } catch (e) {}
+}
+
 function playWarningSound() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = 'sine';
-        o.frequency.value = 880;
-        g.gain.value = 0.15;
+        o.frequency.value = 1046.5; // C6, clear beep
+        g.gain.value = 0.18;
         o.connect(g).connect(ctx.destination);
         o.start();
         setTimeout(() => { o.stop(); ctx.close(); }, 120);
