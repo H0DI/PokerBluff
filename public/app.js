@@ -254,6 +254,7 @@ document.addEventListener('newRound', () => {
 });
 
 socket.on('eliminated', () => {
+    console.log('[eliminated event] Fired');
     isEliminated = true;
     // Remove any previous overlay
     const oldOverlay = document.getElementById('eliminated-overlay');
@@ -261,6 +262,17 @@ socket.on('eliminated', () => {
     // Hide hand selection if present
     const handSelection = document.querySelector('.hand-selection');
     if (handSelection) handSelection.remove();
+    // Hide the entire player-area (cards and controls)
+    const playerArea = document.querySelector('.player-area');
+    if (playerArea) playerArea.style.display = 'none';
+    console.log('[eliminated event] Adding eliminated class to body');
+    // Add eliminated class to body for extra styling
+    document.body.classList.add('eliminated');
+    // Disable all action buttons and add disabled class
+    playHandBtn.disabled = true;
+    callBluffBtn.disabled = true;
+    playHandBtn.classList.add('disabled');
+    callBluffBtn.classList.add('disabled');
     // Show a full-screen overlay
     let overlay = document.createElement('div');
     overlay.id = 'eliminated-overlay';
