@@ -207,12 +207,19 @@ button:disabled {
 /* Animations */
 @keyframes cardDeal {
     0% {
-        transform: translateY(-100vh) rotate(0deg);
         opacity: 0;
+        transform: translateY(60px) scale(0.7) rotate(-8deg);
+        box-shadow: 0 0 0 0 #217dbb00;
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(-8px) scale(1.08) rotate(2deg);
+        box-shadow: 0 8px 24px 0 #217dbb33;
     }
     100% {
-        transform: translateY(0) rotate(360deg);
         opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+        box-shadow: 0 2px 8px 0 #217dbb22;
     }
 }
 
@@ -229,7 +236,7 @@ button:disabled {
 }
 
 .card.dealt {
-    animation: cardDeal 0.5s ease-out forwards;
+    animation: cardDeal 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 .bluff-called {
@@ -497,6 +504,25 @@ button:disabled {
     justify-content: center;
     font-size: 1.3rem;
     padding: 2rem;
+    animation: bluffRevealFadeIn 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes bluffRevealFadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.7) translateY(40px);
+        filter: blur(6px);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.08) translateY(-8px);
+        filter: blur(0.5px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: none;
+    }
 }
 
 .reveal-cards-content {
@@ -509,6 +535,13 @@ button:disabled {
     display: flex;
     flex-direction: column;
     align-items: center;
+    animation: bluffPulse 1.2s cubic-bezier(0.23, 1, 0.32, 1) 1;
+}
+
+@keyframes bluffPulse {
+    0% { box-shadow: 0 0 0 0 #e74c3c33; }
+    60% { box-shadow: 0 0 32px 16px #e74c3c33; }
+    100% { box-shadow: 0 0 0 0 #e74c3c00; }
 }
 
 .reveal-cards-content h2 {
@@ -802,4 +835,189 @@ body.eliminated .player-area {
 @keyframes timer-pulse {
     0% { box-shadow: 0 0 0 0 #e74c3c33; }
     100% { box-shadow: 0 0 16px 8px #e74c3c33; }
+}
+
+.room-settings {
+    display: flex;
+    flex-direction: row;
+    gap: 1.2rem;
+    background: #f8f9fa;
+    border: 1.5px solid #e0e4ea;
+    border-radius: 10px;
+    padding: 0.7rem 1.2rem;
+    margin-bottom: 1.2rem;
+    align-items: center;
+    justify-content: center;
+}
+.room-settings label {
+    font-size: 1.05rem;
+    color: #2c3e50;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+}
+.room-settings input[type="number"] {
+    font-size: 1.05rem;
+    width: 3.2em;
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    margin-left: 0.3em;
+    background: #fff;
+}
+#waiting-room-settings {
+    background: #f8f9fa;
+    border: 1.5px solid #e0e4ea;
+    border-radius: 10px;
+    padding: 0.6rem 1.1rem;
+    margin: 0.7rem 0 0.5rem 0;
+    font-size: 1.08rem;
+    color: #217dbb;
+    font-weight: 600;
+    display: inline-block;
+    letter-spacing: 0.01em;
+}
+
+.room-setting-label {
+    font-size: 1.18rem;
+    color: #2c3e50;
+    font-weight: 600;
+    margin: 0 1.2rem 0 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+}
+.room-setting-label:last-child {
+    margin-right: 0;
+}
+.room-setting-label span {
+    font-size: 1.22rem;
+    color: #217dbb;
+    font-weight: 700;
+    margin-left: 0.3em;
+}
+
+.room-setting-select {
+    font-size: 1.13rem;
+    color: #217dbb;
+    font-weight: 700;
+    border: 1.5px solid #cfd8e3;
+    border-radius: 7px;
+    background: #fff;
+    padding: 0.18em 0.7em 0.18em 0.5em;
+    margin-left: 0.5em;
+    outline: none;
+    transition: border 0.2s;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.04);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+.room-setting-select:focus {
+    border: 1.5px solid #3498db;
+    background: #f0f8ff;
+}
+
+#room-id-display {
+    display: inline-block;
+    font-size: 2.1rem;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(90deg, #3498db 60%, #2ecc71 100%);
+    border-radius: 10px;
+    padding: 0.25em 1.1em;
+    margin: 0.5em 0 0.5em 0.5em;
+    letter-spacing: 0.12em;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+    border: 2.5px solid #217dbb;
+    text-shadow: 0 2px 8px #217dbb33;
+    transition: background 0.2s, color 0.2s;
+}
+
+#logo-flip-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.7rem;
+    perspective: 800px;
+    min-height: 90px;
+}
+.logo-flip {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 0.2rem;
+    cursor: pointer;
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    will-change: transform;
+    outline: none;
+    backface-visibility: hidden;
+}
+.logo-flip.flipped {
+    transform: rotateY(180deg);
+}
+#logo-flip-message {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #217dbb;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.5em 1.2em;
+    margin-top: 0.7em;
+    margin-bottom: 1.2em;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+    opacity: 0;
+    pointer-events: none;
+    position: relative;
+    z-index: 2;
+    transition: opacity 0.4s;
+    display: block;
+}
+#logo-flip-message.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+.logo-flip-3d.flipped ~ #logo-flip-message {
+    opacity: 1;
+    pointer-events: auto;
+}
+.logo-flip-3d:not(.flipped) ~ #logo-flip-message {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.logo-flip-3d {
+    width: 150px;
+    height: 150px;
+    position: relative;
+    perspective: 1200px;
+    margin: 0 auto 0.7rem auto;
+    cursor: pointer;
+}
+.logo-flip-3d .logo-flip {
+    width: 150px;
+    height: 150px;
+    position: absolute;
+    top: 0; left: 0;
+    backface-visibility: hidden;
+    transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+    will-change: transform;
+    outline: none;
+    z-index: 1;
+}
+.logo-flip-3d .logo-flip-front {
+    z-index: 2;
+    transform: rotateY(0deg);
+}
+.logo-flip-3d.flipped .logo-flip-front {
+    transform: rotateY(180deg);
+}
+.logo-flip-3d .logo-flip-back {
+    z-index: 1;
+    transform: rotateY(-180deg);
+}
+.logo-flip-3d.flipped .logo-flip-back {
+    transform: rotateY(0deg);
+    z-index: 3;
 } 

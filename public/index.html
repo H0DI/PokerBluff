@@ -12,9 +12,83 @@
     <div id="app">
         <!-- Welcome Screen -->
         <div id="welcome-screen" class="screen">
+            <div id="logo-flip-container">
+                <div class="logo-flip-3d">
+                    <!-- Front SVG (no image) -->
+                    <svg width="150" height="150" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" id="logo-flip" class="logo-flip logo-flip-front" tabindex="0">
+                      <circle cx="60" cy="60" r="54" fill="#fff" stroke="#e74c3c" stroke-width="8"/>
+                      <circle cx="60" cy="60" r="38" fill="#e74c3c" stroke="#222" stroke-width="4"/>
+                      <circle cx="60" cy="60" r="24" fill="#fff" stroke="#222" stroke-width="4"/>
+                      <g stroke="#222" stroke-width="4">
+                        <line x1="60" y1="6" x2="60" y2="26"/>
+                        <line x1="60" y1="94" x2="60" y2="114"/>
+                        <line x1="6" y1="60" x2="26" y2="60"/>
+                        <line x1="94" y1="60" x2="114" y2="60"/>
+                        <line x1="25.7" y1="25.7" x2="39.8" y2="39.8"/>
+                        <line x1="94.3" y1="25.7" x2="80.2" y2="39.8"/>
+                        <line x1="25.7" y1="94.3" x2="39.8" y2="80.2"/>
+                        <line x1="94.3" y1="94.3" x2="80.2" y2="80.2"/>
+                      </g>
+                      <text x="60" y="70" text-anchor="middle" font-size="32" font-family="Arial, sans-serif" fill="#222" font-weight="bold">🃏</text>
+                    </svg>
+                    <!-- Back SVG (with image) -->
+                    <svg width="150" height="150" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-flip logo-flip-back">
+                      <circle cx="60" cy="60" r="54" fill="#fff" stroke="#2ecc71" stroke-width="8"/>
+                      <circle cx="60" cy="60" r="38" fill="#2ecc71" stroke="#222" stroke-width="4"/>
+                      <circle cx="60" cy="60" r="24" fill="#fff" stroke="#222" stroke-width="4"/>
+                      <defs>
+                        <clipPath id="chip-img-clip-back">
+                          <circle cx="60" cy="60" r="24" />
+                        </clipPath>
+                      </defs>
+                      <image
+                        href="https://i.postimg.cc/CLB2m0YN/C3087-B11-6473-403-B-9-AEC-2-F2-F5-DD4-FF79.png"
+                        x="36" y="36" width="48" height="48"
+                        clip-path="url(#chip-img-clip-back)"
+                        style="border-radius:50%;object-fit:cover;"
+                      />
+                      <g stroke="#222" stroke-width="4">
+                        <line x1="60" y1="6" x2="60" y2="26"/>
+                        <line x1="60" y1="94" x2="60" y2="114"/>
+                        <line x1="6" y1="60" x2="26" y2="60"/>
+                        <line x1="94" y1="60" x2="114" y2="60"/>
+                        <line x1="25.7" y1="25.7" x2="39.8" y2="39.8"/>
+                        <line x1="94.3" y1="25.7" x2="80.2" y2="39.8"/>
+                        <line x1="25.7" y1="94.3" x2="39.8" y2="80.2"/>
+                        <line x1="94.3" y1="94.3" x2="80.2" y2="80.2"/>
+                      </g>
+                    </svg>
+                </div>
+                <div id="logo-flip-message" class="logo-flip-message hidden" style="font-size:1.1rem;color:#217dbb;margin-top:2em;">
+                    Made By <span style="color:#217dbb;">HODI</span>
+                </div>
+            </div>
             <h1>Poker Bluff</h1>
             <div class="form-container">
                 <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
+                <div class="room-settings">
+                    <label class="room-setting-label">Hand Size:
+                        <select id="setting-hand-size" class="room-setting-select">
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5" selected>5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                        </select>
+                    </label>
+                    <label class="room-setting-label">Turn Timer (sec):
+                        <select id="setting-timer" class="room-setting-select">
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="25" selected>25</option>
+                            <option value="30">30</option>
+                            <option value="40">40</option>
+                            <option value="50">50</option>
+                            <option value="60">60</option>
+                        </select>
+                    </label>
+                </div>
                 <div class="button-group">
                     <button id="create-room">Create Room</button>
                     <button id="join-room">Join Room</button>
@@ -30,8 +104,9 @@
         <div id="waiting-room" class="screen hidden">
             <h2>Waiting Room</h2>
             <div class="room-info">
-                <p>Room ID: <span id="room-id-display"></span></p>
+                <p>Room ID:<br><span id="room-id-display"></span></p>
                 <p>Players: <span id="player-count">1</span>/6</p>
+                <div id="waiting-room-settings"></div>
             </div>
             <div id="waiting-players-list"></div>
             <button id="start-game" disabled>Start Game</button>
@@ -40,6 +115,57 @@
         <!-- Game Screen -->
         <div id="game-screen" class="screen hidden">
             <div class="game-header">
+                <div id="logo-flip-container-game">
+                    <div class="logo-flip-3d">
+                        <!-- Front SVG (no image) -->
+                        <svg width="150" height="150" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" id="logo-flip-game" class="logo-flip logo-flip-front" tabindex="0">
+                          <circle cx="60" cy="60" r="54" fill="#fff" stroke="#e74c3c" stroke-width="8"/>
+                          <circle cx="60" cy="60" r="38" fill="#e74c3c" stroke="#222" stroke-width="4"/>
+                          <circle cx="60" cy="60" r="24" fill="#fff" stroke="#222" stroke-width="4"/>
+                          <g stroke="#222" stroke-width="4">
+                            <line x1="60" y1="6" x2="60" y2="26"/>
+                            <line x1="60" y1="94" x2="60" y2="114"/>
+                            <line x1="6" y1="60" x2="26" y2="60"/>
+                            <line x1="94" y1="60" x2="114" y2="60"/>
+                            <line x1="25.7" y1="25.7" x2="39.8" y2="39.8"/>
+                            <line x1="94.3" y1="25.7" x2="80.2" y2="39.8"/>
+                            <line x1="25.7" y1="94.3" x2="39.8" y2="80.2"/>
+                            <line x1="94.3" y1="94.3" x2="80.2" y2="80.2"/>
+                          </g>
+                          <text x="60" y="70" text-anchor="middle" font-size="32" font-family="Arial, sans-serif" fill="#222" font-weight="bold">🃏</text>
+                        </svg>
+                        <!-- Back SVG (with image) -->
+                        <svg width="150" height="150" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-flip logo-flip-back">
+                          <circle cx="60" cy="60" r="54" fill="#fff" stroke="#2ecc71" stroke-width="8"/>
+                          <circle cx="60" cy="60" r="38" fill="#2ecc71" stroke="#222" stroke-width="4"/>
+                          <circle cx="60" cy="60" r="24" fill="#fff" stroke="#222" stroke-width="4"/>
+                          <defs>
+                            <clipPath id="chip-img-clip-back">
+                              <circle cx="60" cy="60" r="24" />
+                            </clipPath>
+                          </defs>
+                          <image
+                            href="https://i.postimg.cc/CLB2m0YN/C3087-B11-6473-403-B-9-AEC-2-F2-F5-DD4-FF79.png"
+                            x="36" y="36" width="48" height="48"
+                            clip-path="url(#chip-img-clip-back)"
+                            style="border-radius:50%;object-fit:cover;"
+                          />
+                          <g stroke="#222" stroke-width="4">
+                            <line x1="60" y1="6" x2="60" y2="26"/>
+                            <line x1="60" y1="94" x2="60" y2="114"/>
+                            <line x1="6" y1="60" x2="26" y2="60"/>
+                            <line x1="94" y1="60" x2="114" y2="60"/>
+                            <line x1="25.7" y1="25.7" x2="39.8" y2="39.8"/>
+                            <line x1="94.3" y1="25.7" x2="80.2" y2="39.8"/>
+                            <line x1="25.7" y1="94.3" x2="39.8" y2="80.2"/>
+                            <line x1="94.3" y1="94.3" x2="80.2" y2="80.2"/>
+                          </g>
+                        </svg>
+                    </div>
+                    <div id="logo-flip-message-game" class="logo-flip-message hidden" style="margin-top:2em;">
+                        Made By <span style="color:#e74c3c;">HODI</span>
+                    </div>
+                </div>
                 <h2>Poker Bluff</h2>
                 <div id="players-list-collapsible" class="collapsible">
                     <button id="toggle-players-list" class="collapsible-toggle">Show Players ▼</button>
