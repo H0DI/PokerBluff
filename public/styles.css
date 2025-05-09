@@ -686,4 +686,22 @@ body.eliminated .player-cards-container {
 
 body.eliminated .player-area {
     display: none !important;
+}
+
+.watch-game-btn {
+    margin-top: 2rem;
+    background: #2ecc71;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.8rem 2rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(44, 62, 80, 0.10);
+    transition: background 0.2s, transform 0.2s;
+}
+.watch-game-btn:hover {
+    background: #27ae60;
+    transform: translateY(-2px) scale(1.04);
 } 

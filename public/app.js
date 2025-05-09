@@ -273,12 +273,16 @@ socket.on('eliminated', () => {
     callBluffBtn.disabled = true;
     playHandBtn.classList.add('disabled');
     callBluffBtn.classList.add('disabled');
-    // Show a full-screen overlay
+    // Show a full-screen overlay with a Watch Game button
     let overlay = document.createElement('div');
     overlay.id = 'eliminated-overlay';
     overlay.className = 'eliminated-overlay';
-    overlay.innerHTML = '<div class="eliminated-overlay-content">You have been <span>eliminated</span>!</div>';
+    overlay.innerHTML = '<div class="eliminated-overlay-content">You have been <span>eliminated</span>!<br><button id="watch-game-btn" class="watch-game-btn">Watch Game</button></div>';
     document.body.appendChild(overlay);
+    // Add event listener to dismiss overlay
+    document.getElementById('watch-game-btn').addEventListener('click', () => {
+        overlay.remove();
+    });
     updateButtonStates();
 });
 
