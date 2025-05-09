@@ -46,6 +46,9 @@ const handRanks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 
 // Track if the player is eliminated
 let isEliminated = false;
 
+let turnTimerInterval = null;
+let turnTimerTimeout = null;
+
 // Event Listeners
 createRoomBtn.addEventListener('click', () => {
     if (hasJoinedRoom) return;
@@ -142,6 +145,8 @@ socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
     console.log('[gameStarted] My socket.id:', socket.id, 'currentTurn:', currentTurn, 'isMyTurn:', isMyTurn);
     lastDeclaredHand = null;
     updateButtonStates();
+    stopTurnTimer();
+    startTurnTimer(isMyTurn);
     if (isMyTurn) {
         selectedHandType = null;
         selectedHandRank = null;
@@ -175,12 +180,43 @@ socket.on('dealCards', ({ cards }) => {
 });
 
 socket.on('handPlayed', ({ playerId, hand, nextTurn, players }) => {
+    if (hand && hand.type === 'skip') {
+        // Only update turn and show skip message, do not update lastDeclaredHand or claimed hand
+        updatePlayersList(players, document.getElementById('game-players-list'));
+        updateTurnIndicator(nextTurn);
+        isMyTurn = socket.id === nextTurn;
+        console.log('[handPlayed] SKIP: My socket.id:', socket.id, 'nextTurn:', nextTurn, 'isMyTurn:', isMyTurn);
+        stopTurnTimer();
+        startTurnTimer(isMyTurn);
+        // Show skip message below the last claimed hand
+        const player = document.querySelector(`.player-item[data-id="${playerId}"]`);
+        const playerName = player ? player.querySelector('span').textContent : 'Unknown';
+        lastPlay.classList.remove('hidden');
+        // Only update the play-info, not the cards
+        let playInfo = lastPlay.querySelector('.play-info');
+        if (!playInfo) {
+            playInfo = document.createElement('div');
+            playInfo.className = 'play-info';
+            lastPlay.appendChild(playInfo);
+        }
+        playInfo.textContent = `${playerName} was skipped.`;
+        // Always remove hand selection for the skipped player
+        const handSelection = document.querySelector('.hand-selection');
+        if (handSelection) handSelection.remove();
+        // If I am the next player, show hand selection
+        if (isMyTurn) showHandSelection();
+        updateButtonStates();
+        return;
+    }
+    // Normal hand played
     lastDeclaredHand = hand;
     updateLastPlay(playerId, hand);
     updatePlayersList(players, document.getElementById('game-players-list'));
     updateTurnIndicator(nextTurn);
     isMyTurn = socket.id === nextTurn;
     console.log('[handPlayed] My socket.id:', socket.id, 'nextTurn:', nextTurn, 'isMyTurn:', isMyTurn);
+    stopTurnTimer();
+    startTurnTimer(isMyTurn);
     if (isMyTurn) {
         selectedHandType = null;
         selectedHandRank = null;
@@ -200,12 +236,15 @@ socket.on('bluffResult', ({ handExists, callingPlayer, lastPlayer, remainingPlay
         'Bluff call successful! The hand was fake.';
     showBluffResult(resultMessage);
     updatePlayersList(remainingPlayers, document.getElementById('game-players-list'));
+    stopTurnTimer();
     setTimeout(() => {
         const nextPlayer = remainingPlayers.find(p => p.cardsCount > 0);
         if (nextPlayer) {
             updateTurnIndicator(nextPlayer.id);
             isMyTurn = socket.id === nextPlayer.id;
             updateButtonStates();
+            stopTurnTimer();
+            startTurnTimer(isMyTurn);
         }
     }, 2000);
 });
@@ -214,6 +253,7 @@ socket.on('gameOver', ({ winner }) => {
     showScreen(gameOverScreen);
     document.querySelector('.winner-announcement').textContent = 
         `Winner: ${winner.name}!`;
+    stopTurnTimer();
 });
 
 socket.on('playerLeft', ({ players }) => {
@@ -252,6 +292,7 @@ socket.on('revealAllCards', ({ players, bluffResult, callingPlayer, lastPlayer }
             socket.emit('startNewRound', { roomId: currentRoom });
         }
     }, 5300);
+    stopTurnTimer();
 });
 
 // Add a handler to clear UI and reset for new round
@@ -299,6 +340,7 @@ socket.on('eliminated', () => {
         overlay.remove();
     });
     updateButtonStates();
+    stopTurnTimer();
 });
 
 // Helper Functions
@@ -590,6 +632,69 @@ function getHandStrength(hand) {
         return typeStrength * 10000 + mainRank * 100;
     }
     return typeStrength * 10000;
+}
+
+function playWarningSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = 880;
+        g.gain.value = 0.15;
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        setTimeout(() => { o.stop(); ctx.close(); }, 120);
+    } catch (e) {}
+}
+
+function startTurnTimer(isMyTurn) {
+    const timerDiv = document.getElementById('turn-timer');
+    if (!timerDiv) return;
+    let timeLeft = 25;
+    timerDiv.textContent = `${timeLeft}s`;
+    timerDiv.className = 'turn-timer';
+    timerDiv.classList.remove('hidden');
+    clearInterval(turnTimerInterval);
+    clearTimeout(turnTimerTimeout);
+    if (!isMyTurn) {
+        timerDiv.classList.add('hidden');
+        return;
+    }
+    turnTimerInterval = setInterval(() => {
+        timeLeft--;
+        timerDiv.textContent = `${timeLeft}s`;
+        timerDiv.className = 'turn-timer';
+        if (timeLeft <= 5 && timeLeft > 2) {
+            timerDiv.classList.add('warning');
+            playWarningSound();
+            if (navigator.vibrate) navigator.vibrate(80);
+        }
+        if (timeLeft <= 2 && timeLeft > 0) {
+            timerDiv.classList.add('critical');
+            playWarningSound();
+            if (navigator.vibrate) navigator.vibrate([120, 40, 120]);
+        }
+        if (timeLeft <= 0) {
+            clearInterval(turnTimerInterval);
+            timerDiv.textContent = '0s';
+            timerDiv.className = 'turn-timer critical';
+        }
+    }, 1000);
+    turnTimerTimeout = setTimeout(() => {
+        clearInterval(turnTimerInterval);
+        timerDiv.textContent = '0s';
+        timerDiv.className = 'turn-timer critical';
+        // Auto-skip turn
+        socket.emit('skipTurn', { roomId: currentRoom });
+    }, 25000);
+}
+
+function stopTurnTimer() {
+    clearInterval(turnTimerInterval);
+    clearTimeout(turnTimerTimeout);
+    const timerDiv = document.getElementById('turn-timer');
+    if (timerDiv) timerDiv.classList.add('hidden');
 }
 
 // Initialize

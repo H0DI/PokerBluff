@@ -775,4 +775,31 @@ body.eliminated .player-area {
 .watch-game-btn:hover {
     background: #27ae60;
     transform: translateY(-2px) scale(1.04);
+}
+
+.turn-timer {
+    margin: 0.7rem auto 0.5rem auto;
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: #3498db;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 0.3em 1.2em;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+    width: fit-content;
+    transition: color 0.3s, background 0.3s;
+}
+.turn-timer.warning {
+    color: #fff;
+    background: #e67e22;
+    animation: timer-pulse 0.7s infinite alternate;
+}
+.turn-timer.critical {
+    color: #fff;
+    background: #e74c3c;
+    animation: timer-pulse 0.4s infinite alternate;
+}
+@keyframes timer-pulse {
+    0% { box-shadow: 0 0 0 0 #e74c3c33; }
+    100% { box-shadow: 0 0 16px 8px #e74c3c33; }
 } 

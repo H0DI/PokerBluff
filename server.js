@@ -384,6 +384,24 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('skipTurn', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    // Only allow skip if it's this player's turn and they're not eliminated
+    const playerIdx = room.players.findIndex(p => p.id === socket.id);
+    if (room.currentTurn !== socket.id || playerIdx === -1) return;
+    // Advance to next player
+    let nextIdx = (playerIdx + 1) % room.players.length;
+    room.currentTurn = room.players[nextIdx].id;
+    // Emit a skip event as a handPlayed with no hand
+    io.to(roomId).emit('handPlayed', {
+      playerId: socket.id,
+      hand: { type: 'skip', playerId: socket.id },
+      nextTurn: room.currentTurn,
+      players: room.allPlayers || room.players.map(p => ({ id: p.id, name: p.name, cardsCount: p.cards.length }))
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected');
     // Clean up rooms when players disconnect
