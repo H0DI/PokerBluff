@@ -231,6 +231,8 @@ socket.on('revealAllCards', ({ players, bluffResult }) => {
         players.map(p => `<div><b>${p.name}:</b> ${p.cards.map(card => card.value + card.suit).join(' ')}</div>`).join('') +
         `<div class='bluff-result-msg'>${bluffResult}</div>`;
     document.body.appendChild(revealDiv);
+    // Hide the claimed hand area after round ends
+    lastPlay.classList.add('hidden');
     setTimeout(() => {
         revealDiv.remove();
         socket.emit('startNewRound', { roomId: currentRoom });
@@ -246,6 +248,8 @@ document.addEventListener('newRound', () => {
     selectedHandRank2 = null;
     renderPlayerCards(true);
     updateButtonStates();
+    // Also hide the claimed hand area at the start of a new round
+    lastPlay.classList.add('hidden');
     if (isMyTurn) showHandSelection();
 });
 
