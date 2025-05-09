@@ -30,6 +30,7 @@ let selectedHandType = null;
 let selectedHandRank = null;
 let selectedHandRank2 = null;
 let lastDeclaredHand = null;
+let lastBluffInfo = null;
 const handTypes = [
     { key: 'high_card', label: 'High Card', ranks: 1 },
     { key: 'pair', label: 'Pair', ranks: 1 },
@@ -44,6 +45,9 @@ const handRanks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 
 
 // Track if the player is eliminated
 let isEliminated = false;
+
+let turnTimerInterval = null;
+let turnTimerTimeout = null;
 
 // Event Listeners
 createRoomBtn.addEventListener('click', () => {
@@ -83,6 +87,7 @@ startGameBtn.addEventListener('click', () => {
 });
 
 playHandBtn.addEventListener('click', () => {
+    playHandSound();
     const typeObj = handTypes.find(t => t.key === selectedHandType);
     if (!typeObj) return;
     if (typeObj.ranks === 1 && isMyTurn && selectedHandType && selectedHandRank) {
@@ -99,6 +104,7 @@ playHandBtn.addEventListener('click', () => {
 });
 
 callBluffBtn.addEventListener('click', () => {
+    playBluffSound();
     socket.emit('callBluff', { roomId: currentRoom });
 });
 
@@ -139,8 +145,13 @@ socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
     updateTurnIndicator(currentTurn);
     isMyTurn = socket.id === currentTurn;
     console.log('[gameStarted] My socket.id:', socket.id, 'currentTurn:', currentTurn, 'isMyTurn:', isMyTurn);
+    // Always clear last claimed hand and reset lastDeclaredHand at the start of a new round
     lastDeclaredHand = null;
+    lastPlay.classList.add('hidden');
+    lastPlay.innerHTML = '';
     updateButtonStates();
+    stopTurnTimer();
+    startTurnTimer(isMyTurn);
     if (isMyTurn) {
         selectedHandType = null;
         selectedHandRank = null;
@@ -174,12 +185,43 @@ socket.on('dealCards', ({ cards }) => {
 });
 
 socket.on('handPlayed', ({ playerId, hand, nextTurn, players }) => {
+    if (hand && hand.type === 'skip') {
+        // Only update turn and show skip message, do not update lastDeclaredHand or claimed hand
+        updatePlayersList(players, document.getElementById('game-players-list'));
+        updateTurnIndicator(nextTurn);
+        isMyTurn = socket.id === nextTurn;
+        console.log('[handPlayed] SKIP: My socket.id:', socket.id, 'nextTurn:', nextTurn, 'isMyTurn:', isMyTurn);
+        stopTurnTimer();
+        startTurnTimer(isMyTurn);
+        // Show skip message below the last claimed hand
+        const player = document.querySelector(`.player-item[data-id="${playerId}"]`);
+        const playerName = player ? player.querySelector('span').textContent : 'Unknown';
+        lastPlay.classList.remove('hidden');
+        // Only update the play-info, not the cards
+        let playInfo = lastPlay.querySelector('.play-info');
+        if (!playInfo) {
+            playInfo = document.createElement('div');
+            playInfo.className = 'play-info';
+            lastPlay.appendChild(playInfo);
+        }
+        playInfo.textContent = `${playerName} was skipped.`;
+        // Always remove hand selection for the skipped player
+        const handSelection = document.querySelector('.hand-selection');
+        if (handSelection) handSelection.remove();
+        // If I am the next player, show hand selection
+        if (isMyTurn) showHandSelection();
+        updateButtonStates();
+        return;
+    }
+    // Normal hand played
     lastDeclaredHand = hand;
     updateLastPlay(playerId, hand);
     updatePlayersList(players, document.getElementById('game-players-list'));
     updateTurnIndicator(nextTurn);
     isMyTurn = socket.id === nextTurn;
     console.log('[handPlayed] My socket.id:', socket.id, 'nextTurn:', nextTurn, 'isMyTurn:', isMyTurn);
+    stopTurnTimer();
+    startTurnTimer(isMyTurn);
     if (isMyTurn) {
         selectedHandType = null;
         selectedHandRank = null;
@@ -193,20 +235,21 @@ socket.on('handPlayed', ({ playerId, hand, nextTurn, players }) => {
 });
 
 socket.on('bluffResult', ({ handExists, callingPlayer, lastPlayer, remainingPlayers }) => {
+    lastBluffInfo = { handExists, callingPlayer, lastPlayer, remainingPlayers };
     const resultMessage = handExists ? 
         'Bluff call failed! The hand was real.' : 
         'Bluff call successful! The hand was fake.';
-    
     showBluffResult(resultMessage);
     updatePlayersList(remainingPlayers, document.getElementById('game-players-list'));
-    
-    // Update turn indicator after a short delay
+    stopTurnTimer();
     setTimeout(() => {
         const nextPlayer = remainingPlayers.find(p => p.cardsCount > 0);
         if (nextPlayer) {
             updateTurnIndicator(nextPlayer.id);
             isMyTurn = socket.id === nextPlayer.id;
             updateButtonStates();
+            stopTurnTimer();
+            startTurnTimer(isMyTurn);
         }
     }, 2000);
 });
@@ -215,6 +258,7 @@ socket.on('gameOver', ({ winner }) => {
     showScreen(gameOverScreen);
     document.querySelector('.winner-announcement').textContent = 
         `Winner: ${winner.name}!`;
+    stopTurnTimer();
 });
 
 socket.on('playerLeft', ({ players }) => {
@@ -222,19 +266,38 @@ socket.on('playerLeft', ({ players }) => {
     document.getElementById('player-count').textContent = players.length;
 });
 
-// Add a handler to reveal all cards and show bluff result
-socket.on('revealAllCards', ({ players, bluffResult }) => {
-    // Show all players' cards in a modal or overlay
+// Enhanced revealAllCards overlay
+socket.on('revealAllCards', ({ players, bluffResult, callingPlayer, lastPlayer }) => {
+    // Find bluff info if available
+    let callerName = '', calledName = '';
+    if (callingPlayer && lastPlayer) {
+        const caller = players.find(p => p.id === callingPlayer);
+        const called = players.find(p => p.id === lastPlayer);
+        callerName = caller ? caller.name : '';
+        calledName = called ? called.name : '';
+    }
     let revealDiv = document.createElement('div');
     revealDiv.className = 'reveal-cards-modal';
-    revealDiv.innerHTML = `<h2>All Cards Revealed</h2>` +
-        players.map(p => `<div><b>${p.name}:</b> ${p.cards.map(card => card.value + card.suit).join(' ')}</div>`).join('') +
-        `<div class='bluff-result-msg'>${bluffResult}</div>`;
+    revealDiv.innerHTML = `
+        <div class='reveal-cards-content'>
+            <h2>All Cards Revealed</h2>
+            <div class='bluff-players-row'><b class='bluff-caller-highlight'>${callerName}</b> called bluff on <b>${calledName}</b></div>
+            <div class='reveal-cards-list'>
+                ${players.map(p => `<div class='reveal-player-row'><span class='reveal-player-name'>${p.name}:</span> <span class='reveal-player-cards'>${p.cards.map(card => card.value + card.suit).join(' ')}</span></div>`).join('')}
+            </div>
+            <div class='bluff-result-msg ${bluffResult.includes('successful') ? 'bluff-success' : 'bluff-fail'}'>${bluffResult}</div>
+        </div>
+    `;
     document.body.appendChild(revealDiv);
+    // Hide the claimed hand area after round ends
+    lastPlay.classList.add('hidden');
     setTimeout(() => {
-        revealDiv.remove();
-        socket.emit('startNewRound', { roomId: currentRoom });
-    }, 5000);
+        if (document.body.contains(revealDiv)) {
+            revealDiv.remove();
+            socket.emit('startNewRound', { roomId: currentRoom });
+        }
+    }, 5300);
+    stopTurnTimer();
 });
 
 // Add a handler to clear UI and reset for new round
@@ -246,10 +309,13 @@ document.addEventListener('newRound', () => {
     selectedHandRank2 = null;
     renderPlayerCards(true);
     updateButtonStates();
+    // Also hide the claimed hand area at the start of a new round
+    lastPlay.classList.add('hidden');
     if (isMyTurn) showHandSelection();
 });
 
 socket.on('eliminated', () => {
+    console.log('[eliminated event] Fired');
     isEliminated = true;
     // Remove any previous overlay
     const oldOverlay = document.getElementById('eliminated-overlay');
@@ -257,13 +323,29 @@ socket.on('eliminated', () => {
     // Hide hand selection if present
     const handSelection = document.querySelector('.hand-selection');
     if (handSelection) handSelection.remove();
-    // Show a full-screen overlay
+    // Hide the entire player-area (cards and controls)
+    const playerArea = document.querySelector('.player-area');
+    if (playerArea) playerArea.style.display = 'none';
+    console.log('[eliminated event] Adding eliminated class to body');
+    // Add eliminated class to body for extra styling
+    document.body.classList.add('eliminated');
+    // Disable all action buttons and add disabled class
+    playHandBtn.disabled = true;
+    callBluffBtn.disabled = true;
+    playHandBtn.classList.add('disabled');
+    callBluffBtn.classList.add('disabled');
+    // Show a full-screen overlay with a Watch Game button
     let overlay = document.createElement('div');
     overlay.id = 'eliminated-overlay';
     overlay.className = 'eliminated-overlay';
-    overlay.innerHTML = '<div class="eliminated-overlay-content">You have been <span>eliminated</span>!</div>';
+    overlay.innerHTML = '<div class="eliminated-overlay-content">You have been <span>eliminated</span>!<br><button id="watch-game-btn" class="watch-game-btn">Watch Game</button></div>';
     document.body.appendChild(overlay);
+    // Add event listener to dismiss overlay
+    document.getElementById('watch-game-btn').addEventListener('click', () => {
+        overlay.remove();
+    });
     updateButtonStates();
+    stopTurnTimer();
 });
 
 // Helper Functions
@@ -555,6 +637,105 @@ function getHandStrength(hand) {
         return typeStrength * 10000 + mainRank * 100;
     }
     return typeStrength * 10000;
+}
+
+function playHandSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((freq, i) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.value = freq;
+            g.gain.value = 0.13;
+            o.connect(g).connect(ctx.destination);
+            o.start(ctx.currentTime + i * 0.07);
+            o.stop(ctx.currentTime + i * 0.07 + 0.18);
+        });
+        setTimeout(() => ctx.close(), 350);
+    } catch (e) {}
+}
+
+function playBluffSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const freqs = [392, 523.25, 659.25]; // G4, C5, E5 (a major chord)
+        freqs.forEach((freq) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'triangle';
+            o.frequency.value = freq;
+            g.gain.value = 0.11;
+            o.connect(g).connect(ctx.destination);
+            o.start(ctx.currentTime);
+            o.stop(ctx.currentTime + 0.22);
+        });
+        setTimeout(() => ctx.close(), 250);
+    } catch (e) {}
+}
+
+function playWarningSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = 1046.5; // C6, clear beep
+        g.gain.value = 0.18;
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        setTimeout(() => { o.stop(); ctx.close(); }, 120);
+    } catch (e) {}
+}
+
+function startTurnTimer(isMyTurn) {
+    const timerDiv = document.getElementById('turn-timer');
+    if (!timerDiv) return;
+    let timeLeft = 25;
+    timerDiv.textContent = `${timeLeft}s`;
+    timerDiv.className = 'turn-timer';
+    timerDiv.classList.remove('hidden');
+    clearInterval(turnTimerInterval);
+    clearTimeout(turnTimerTimeout);
+    if (!isMyTurn) {
+        timerDiv.classList.add('hidden');
+        return;
+    }
+    turnTimerInterval = setInterval(() => {
+        timeLeft--;
+        timerDiv.textContent = `${timeLeft}s`;
+        timerDiv.className = 'turn-timer';
+        if (timeLeft <= 5 && timeLeft > 2) {
+            timerDiv.classList.add('warning');
+            playWarningSound();
+            if (navigator.vibrate) navigator.vibrate(80);
+        }
+        if (timeLeft <= 2 && timeLeft > 0) {
+            timerDiv.classList.add('critical');
+            playWarningSound();
+            if (navigator.vibrate) navigator.vibrate([120, 40, 120]);
+        }
+        if (timeLeft <= 0) {
+            clearInterval(turnTimerInterval);
+            timerDiv.textContent = '0s';
+            timerDiv.className = 'turn-timer critical';
+        }
+    }, 1000);
+    turnTimerTimeout = setTimeout(() => {
+        clearInterval(turnTimerInterval);
+        timerDiv.textContent = '0s';
+        timerDiv.className = 'turn-timer critical';
+        // Auto-skip turn
+        socket.emit('skipTurn', { roomId: currentRoom });
+    }, 25000);
+}
+
+function stopTurnTimer() {
+    clearInterval(turnTimerInterval);
+    clearTimeout(turnTimerTimeout);
+    const timerDiv = document.getElementById('turn-timer');
+    if (timerDiv) timerDiv.classList.add('hidden');
 }
 
 // Initialize

@@ -253,11 +253,22 @@ io.on('connection', (socket) => {
 
   socket.on('callBluff', ({ roomId }) => {
     const room = rooms.get(roomId);
-    if (room && room.lastHand) {
+    if (!room) return;
+    const callingPlayer = room.players.find(p => p.id === socket.id);
+    if (!callingPlayer || callingPlayer.cards.length === 0) {
+      socket.emit('joinError', { message: 'You are eliminated and cannot call a bluff.' });
+      return;
+    }
+    if (room.lastHand) {
       const lastPlayer = room.players.find(p => p.id === room.lastHand.playerId);
-      const callingPlayer = room.players.find(p => p.id === socket.id);
+      if (!lastPlayer || lastPlayer.cards.length === 0) {
+        socket.emit('joinError', { message: 'The last player is eliminated. Cannot call bluff.' });
+        return;
+      }
       // Gather all cards in play
       const allCards = room.players.flatMap(p => p.cards);
+      // --- Capture pre-elimination state ---
+      const preEliminationPlayers = room.players.map(p => ({ id: p.id, name: p.name, cards: [...p.cards] }));
       // Check if the declared hand exists in the pool
       const handExists = handExistsForBluff(room.lastHand.hand, allCards);
       let loser;
@@ -270,17 +281,19 @@ io.on('connection', (socket) => {
       }
       // Always track the loser for new round starter logic
       room.lastLoser = loser.id;
-      // Reveal all cards and show result
+      // Reveal all cards and show result (use pre-elimination state)
       const bluffResult = handExists ? 'Bluff call failed! The hand was real.' : 'Bluff call successful! The hand was fake.';
       const allPlayersBluff = room.allPlayers || room.players.map(p => ({ id: p.id, name: p.name, cardsCount: p.cards.length }));
       io.to(roomId).emit('revealAllCards', {
-        players: room.players.map(p => ({ name: p.name, cards: p.cards })),
-        bluffResult
+        players: preEliminationPlayers,
+        bluffResult,
+        callingPlayer: callingPlayer.id,
+        lastPlayer: lastPlayer ? lastPlayer.id : null
       });
       io.to(roomId).emit('bluffResult', {
         handExists,
         callingPlayer: callingPlayer.id,
-        lastPlayer: lastPlayer.id,
+        lastPlayer: lastPlayer ? lastPlayer.id : null,
         remainingPlayers: room.allPlayers
       });
       // After a delay, start a new round (handled by startNewRound event)
@@ -304,9 +317,10 @@ io.on('connection', (socket) => {
       room.players = room.players.filter(p => p.cards.length > 0);
       // Notify eliminated players
       const eliminatedIds = prevPlayers
-        .filter(p => p.cards.length > 0 && !room.players.find(pl => pl.id === p.id))
+        .filter(p => !room.players.find(pl => pl.id === p.id))
         .map(p => p.id);
       eliminatedIds.forEach(id => {
+        console.log('[server] Emitting eliminated to:', id);
         io.to(id).emit('eliminated');
       });
       console.log('[startNewRound] filtered players:', room.players.map(p => ({ id: p.id, name: p.name, cards: p.cards.length })));
@@ -368,6 +382,24 @@ io.on('connection', (socket) => {
         p.cardsCount = active ? active.cards.length : 0;
       });
     }
+  });
+
+  socket.on('skipTurn', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    // Only allow skip if it's this player's turn and they're not eliminated
+    const playerIdx = room.players.findIndex(p => p.id === socket.id);
+    if (room.currentTurn !== socket.id || playerIdx === -1) return;
+    // Advance to next player
+    let nextIdx = (playerIdx + 1) % room.players.length;
+    room.currentTurn = room.players[nextIdx].id;
+    // Emit a skip event as a handPlayed with no hand
+    io.to(roomId).emit('handPlayed', {
+      playerId: socket.id,
+      hand: { type: 'skip', playerId: socket.id },
+      nextTurn: room.currentTurn,
+      players: room.allPlayers || room.players.map(p => ({ id: p.id, name: p.name, cardsCount: p.cards.length }))
+    });
   });
 
   socket.on('disconnect', () => {
