@@ -21,21 +21,17 @@
 ## 🚀 Features
 
 - Real-time multiplayer gameplay (Node.js, Express, Socket.IO)
-- Mobile-first, modern UI (optimized for iPhone 13 and desktop)
+- Mobile-first, modern UI (optimized for phones and desktop)
 - Poker hand declaration with bluffing and hand strength logic (including kickers)
 - Call bluff mechanic with dramatic reveal overlays and color-coded results
 - Player elimination with full-screen overlays and spectate mode
 - Custom room settings: hand size and turn timer (set by host)
-- Animated card dealing and bluff reveal (fly-in, fade, scale, pulse)
-- Interactive SVG poker chip logo with 3D flip and "Made By HODI" branding
+- Animated card dealing and bluff reveal
 - Melodic sound effects for actions and timer warnings (Web Audio API)
-- Responsive, accessible UI: keyboard navigation, large room code, clear labels
-- Collapsible player list with eliminated player marking
+- Collapsible player list
 - Always-visible total card count and claimed hand display
 - Turn timer with warning sounds, color changes, and device vibration
 - Robust backend logic for turn order, elimination, and hand comparison
-- Bug-free, visually polished experience
-
 ---
 
 ## 🛠️ Tech Stack
@@ -79,4 +75,11 @@ Be the last player with cards remaining by out-bluffing and outsmarting your opp
 
 ## 🖥️ Getting Started
 
+```bash
+git clone https://github.com/YOUR_USERNAME/poker-bluff.git
+cd poker-bluff
+npm install
+npm start
 ```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
