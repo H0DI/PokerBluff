@@ -385,7 +385,7 @@ function updatePlayersList(players, targetList) {
 function renderPlayerCards(isInitialDeal = false) {
     playerCardsContainer.innerHTML = playerCards.map((card, index) => `
         <div class="card ${['♥', '♦'].includes(card.suit) ? 'red' : 'black'}${isInitialDeal ? ' dealt' : ''}"
-             style="animation-delay: ${isInitialDeal ? index * 0.1 : 0}s"
+             style="animation-delay: ${isInitialDeal ? index * 0.12 : 0}s"
              data-index="${index}">
             ${card.value}${card.suit}
         </div>
