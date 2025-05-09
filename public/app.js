@@ -122,6 +122,7 @@ socket.on('roomCreated', ({ roomId, handSize, timerLength }) => {
     // Show settings in waiting room
     document.getElementById('waiting-room-settings').innerHTML = `Hand Size: <b>${handSize}</b> &nbsp;|&nbsp; Turn Timer: <b>${timerLength}s</b>`;
     showScreen(waitingRoom);
+    animateRoomId();
 });
 
 socket.on('joinError', ({ message }) => {
@@ -144,6 +145,8 @@ socket.on('playerJoined', ({ players, roomId, handSize, timerLength }) => {
     }
     startGameBtn.disabled = players.length < 3;
     showScreen(waitingRoom);
+    animateRoomId();
+    animatePlayerList();
 });
 
 socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
@@ -169,6 +172,7 @@ socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
         const handSelection = document.querySelector('.hand-selection');
         if (handSelection) handSelection.remove();
     }
+    animatePlayerList();
 });
 
 socket.on('dealCards', ({ cards }) => {
@@ -267,6 +271,7 @@ socket.on('gameOver', ({ winner }) => {
     document.querySelector('.winner-announcement').textContent = 
         `Winner: ${winner.name}!`;
     stopTurnTimer();
+    animateGameOver();
 });
 
 socket.on('playerLeft', ({ players }) => {
@@ -362,6 +367,9 @@ function showScreen(screen) {
         s.classList.add('hidden');
     });
     screen.classList.remove('hidden');
+    if (screen === gameOverScreen) {
+        setTimeout(animateGameOver, 10);
+    }
 }
 
 function updatePlayersList(players, targetList) {
@@ -491,6 +499,7 @@ function updateButtonStates() {
     // Disable Call Bluff if there is no hand to bluff or you were the last to declare a hand
     const lastPlayerId = lastDeclaredHand && lastDeclaredHand.playerId;
     callBluffBtn.disabled = !lastDeclaredHand || lastPlayerId === socket.id;
+    animateActionButtons();
 }
 
 function showBluffResult(message) {
@@ -500,6 +509,7 @@ function showBluffResult(message) {
     document.querySelector('.center-area').appendChild(resultDiv);
     
     setTimeout(() => resultDiv.remove(), 3000);
+    setTimeout(animateBluffResult, 10);
 }
 
 function showHandSelection() {
@@ -746,6 +756,338 @@ function stopTurnTimer() {
     if (timerDiv) timerDiv.classList.add('hidden');
 }
 
+// === ANIME.JS ANIMATIONS ===
+
+// 1. Animate all major buttons on click
+[...document.querySelectorAll('button')].forEach(btn => {
+  btn.addEventListener('click', e => {
+    anime({
+      targets: btn,
+      scale: [1, 1.12, 0.96, 1],
+      duration: 420,
+      easing: 'easeInOutCubic',
+    });
+  });
+});
+
+// 2. Animate Room ID when it appears
+function animateRoomId() {
+  const roomIdEl = document.getElementById('room-id-display');
+  if (roomIdEl) {
+    roomIdEl.style.color = '#fff';
+    anime({
+      targets: roomIdEl,
+      scale: [0.7, 1.2, 1],
+      color: [
+        { value: '#fff', duration: 100 },
+        { value: '#ffe066', duration: 200 },
+        { value: '#fff', duration: 400 },
+      ],
+      duration: 800,
+      easing: 'easeOutElastic(1, .7)',
+    });
+  }
+}
+
+// 3. Animate player list entries when a new player joins
+function animatePlayerList() {
+  const list = document.getElementById('waiting-players-list') || document.getElementById('game-players-list');
+  if (list) {
+    [...list.children].forEach((el, i) => {
+      anime({
+        targets: el,
+        opacity: [0, 1],
+        translateX: [-40, 0],
+        delay: i * 80,
+        duration: 420,
+        easing: 'easeOutExpo',
+      });
+    });
+  }
+}
+
+// 4. Animate bluff result overlays
+function animateBluffResult() {
+  const resultDiv = document.querySelector('.bluff-result');
+  if (resultDiv) {
+    anime({
+      targets: resultDiv,
+      scale: [0.7, 1.15, 1],
+      rotateZ: [0, 6, -6, 0],
+      backgroundColor: [
+        { value: '#ffe066', duration: 200 },
+        { value: '#e74c3c', duration: 400 },
+      ],
+      duration: 900,
+      easing: 'easeOutElastic(1, .7)',
+    });
+  }
+}
+
+// 5. Animate Play Hand and Call Bluff buttons when enabled
+function animateActionButtons() {
+  [playHandBtn, callBluffBtn].forEach(btn => {
+    if (!btn.disabled) {
+      anime({
+        targets: btn,
+        scale: [1, 1.08, 1],
+        boxShadow: [
+          '0 0 0 0 #2ecc71',
+          '0 0 16px 4px #ffe066',
+          '0 0 0 0 #2ecc71',
+        ],
+        duration: 600,
+        easing: 'easeInOutCubic',
+      });
+    }
+  });
+}
+
+// 6. Animate Game Over screen
+function animateGameOver() {
+  const gameOver = document.getElementById('game-over');
+  if (gameOver && !gameOver.classList.contains('hidden')) {
+    anime({
+      targets: gameOver,
+      opacity: [0, 1],
+      scale: [0.7, 1.1, 1],
+      duration: 900,
+      easing: 'easeOutElastic(1, .7)',
+    });
+  }
+}
+
+// === HOOK ANIMATIONS INTO EVENTS ===
+
+// Room ID animation on room creation/join
+const origRoomCreated = socket.listeners('roomCreated')[0];
+socket.off('roomCreated');
+socket.on('roomCreated', (...args) => {
+  origRoomCreated(...args);
+  animateRoomId();
+});
+
+const origPlayerJoined = socket.listeners('playerJoined')[0];
+socket.off('playerJoined');
+socket.on('playerJoined', (...args) => {
+  origPlayerJoined(...args);
+  animateRoomId();
+  animatePlayerList();
+});
+
+// Animate player list on game start
+const origGameStarted = socket.listeners('gameStarted')[0];
+socket.off('gameStarted');
+socket.on('gameStarted', (...args) => {
+  origGameStarted(...args);
+  animatePlayerList();
+});
+
+// Animate bluff result overlay
+const origShowBluffResult = showBluffResult;
+showBluffResult = function(message) {
+  origShowBluffResult(message);
+  setTimeout(animateBluffResult, 10);
+};
+
+// Animate action buttons when enabled
+const origUpdateButtonStates = updateButtonStates;
+updateButtonStates = function() {
+  origUpdateButtonStates();
+  animateActionButtons();
+};
+
+// Animate Game Over screen
+const origShowScreen = showScreen;
+showScreen = function(screen) {
+  origShowScreen(screen);
+  if (screen === gameOverScreen) {
+    setTimeout(animateGameOver, 10);
+  }
+};
+
+// === MAIN MENU SVG ANIMATION (IMPROVED) ===
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    // Animate the main menu SVG (logo-flip) on load and hover/click
+    const logoFront = document.getElementById('logo-flip');
+    let isLogoAnimating = false;
+    if (logoFront) {
+        // On load: pulse and rotate
+        anime({
+            targets: logoFront,
+            scale: [0.7, 1.12, 1],
+            rotate: [0, 10, -6, 0],
+            duration: 900,
+            easing: 'easeOutElastic(1, .7)'
+        });
+        // On hover: bounce
+        logoFront.addEventListener('mouseenter', () => {
+            anime({
+                targets: logoFront,
+                scale: [1, 1.10, 1],
+                duration: 400,
+                easing: 'easeOutElastic(1, .7)'
+            });
+        });
+        logoFront.addEventListener('mouseleave', () => {
+            anime({
+                targets: logoFront,
+                scale: [1.10, 1],
+                duration: 300,
+                easing: 'easeInOutCubic'
+            });
+        });
+        // On click: smooth 360deg Y-rotation, then return to default
+        logoFront.addEventListener('click', () => {
+            if (isLogoAnimating) return;
+            isLogoAnimating = true;
+            anime({
+                targets: logoFront,
+                rotateY: '+=360',
+                duration: 900,
+                easing: 'spring(1, 80, 10, 0)',
+                complete: () => {
+                    // Smoothly return to default orientation
+                    anime({
+                        targets: logoFront,
+                        rotateY: 0,
+                        duration: 600,
+                        easing: 'easeOutElastic(1, .7)',
+                        complete: () => { isLogoAnimating = false; }
+                    });
+                }
+            });
+        });
+    }
+    // Animate Poker Bluff text with improved effect
+    const h1 = document.querySelector('#welcome-screen h1, #welcome-screen #poker-bluff-title');
+    if (h1) {
+        // Remove any previous animation
+        h1.innerHTML = '';
+        const text = 'Poker Bluff';
+        for (let i = 0; i < text.length; i++) {
+            const span = document.createElement('span');
+            span.textContent = text[i] === ' ' ? '\u00A0' : text[i];
+            span.style.opacity = 0;
+            span.style.display = 'inline-block';
+            span.style.transform = 'translateY(18px)';
+            span.style.fontSize = '2.5rem';
+            span.style.fontFamily = 'Poppins, Arial, sans-serif';
+            span.style.fontWeight = '700';
+            span.style.color = '#e74c3c';
+            h1.appendChild(span);
+        }
+        anime({
+            targets: h1.querySelectorAll('span'),
+            opacity: [0, 1],
+            translateY: [18, 0],
+            delay: anime.stagger(60),
+            duration: 520,
+            easing: 'easeOutCubic'
+        });
+    }
+    // Copy Room Code button logic
+    const copyBtn = document.getElementById('copy-room-id');
+    const roomIdEl = document.getElementById('room-id-display');
+    function showCopiedMessage() {
+        let msg = document.getElementById('room-id-copied-msg');
+        if (!msg) {
+            msg = document.createElement('div');
+            msg.id = 'room-id-copied-msg';
+            msg.textContent = 'Copied';
+            msg.style.position = 'absolute';
+            msg.style.left = '50%';
+            msg.style.transform = 'translateX(-50%)';
+            msg.style.top = '-1.7em';
+            msg.style.fontSize = '1.1em';
+            msg.style.fontWeight = '600';
+            msg.style.color = '#ffe066';
+            msg.style.background = 'rgba(44,62,80,0.92)';
+            msg.style.padding = '0.2em 0.8em';
+            msg.style.borderRadius = '8px';
+            msg.style.opacity = '0';
+            msg.style.pointerEvents = 'none';
+            msg.style.transition = 'opacity 0.25s';
+            roomIdEl.parentNode.style.position = 'relative';
+            roomIdEl.parentNode.insertBefore(msg, roomIdEl);
+        }
+        msg.style.opacity = '1';
+        setTimeout(() => { msg.style.opacity = '0'; }, 1100);
+    }
+    function copyRoomId() {
+        const code = roomIdEl && roomIdEl.textContent.trim();
+        if (code) {
+            navigator.clipboard.writeText(code);
+            showCopiedMessage();
+        }
+    }
+    if (copyBtn) {
+        copyBtn.addEventListener('click', copyRoomId);
+    }
+    if (roomIdEl) {
+        roomIdEl.style.cursor = 'pointer';
+        roomIdEl.addEventListener('click', copyRoomId);
+    }
+});
+
+// === createDrawable() implementation ===
+function createDrawable(element, options = {}) {
+    // Simple hand-drawn effect using Anime.js line drawing
+    // Replace text with SVG paths for each letter
+    const text = element.textContent;
+    element.innerHTML = '';
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '60');
+    svg.setAttribute('viewBox', '0 0 420 60');
+    svg.style.display = 'block';
+    svg.style.margin = '0 auto';
+    svg.style.overflow = 'visible';
+    let x = 0;
+    const fontSize = options.fontSize || '2.5rem';
+    const color = options.color || '#e74c3c';
+    const fontFamily = options.fontFamily || 'Poppins, Arial, sans-serif';
+    const strokeWidth = options.strokeWidth || 2;
+    for (let i = 0; i < text.length; i++) {
+        const letter = text[i];
+        const textEl = document.createElementNS(svgNS, 'text');
+        textEl.setAttribute('x', x + 10);
+        textEl.setAttribute('y', 45);
+        textEl.setAttribute('font-size', fontSize);
+        textEl.setAttribute('font-family', fontFamily);
+        textEl.setAttribute('fill', 'none');
+        textEl.setAttribute('stroke', color);
+        textEl.setAttribute('stroke-width', strokeWidth);
+        textEl.setAttribute('stroke-linecap', 'round');
+        textEl.setAttribute('stroke-linejoin', 'round');
+        textEl.textContent = letter;
+        svg.appendChild(textEl);
+        x += 32 + (letter === ' ' ? 18 : 0);
+    }
+    element.appendChild(svg);
+    // Animate each letter as a hand-drawn effect
+    anime({
+        targets: svg.querySelectorAll('text'),
+        strokeDashoffset: [anime.setDashoffset, 0],
+        easing: 'easeInOutSine',
+        duration: options.duration || 1800,
+        delay: anime.stagger(80)
+    });
+    // After draw, fill in color
+    setTimeout(() => {
+        anime({
+            targets: svg.querySelectorAll('text'),
+            fill: [ 'none', color ],
+            stroke: [ color, color ],
+            duration: 700,
+            easing: 'easeInOutCubic',
+            delay: anime.stagger(60)
+        });
+    }, (options.duration || 1800) + 200);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     const toggleBtn = document.getElementById('toggle-players-list');
@@ -800,4 +1142,35 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Enter' || e.key === ' ') doFlip();
         });
     }
-}); 
+});
+
+// Make the room code letters jump and spin every 7 seconds
+setInterval(() => {
+  const roomIdEl = document.getElementById('room-id-display');
+  if (roomIdEl && roomIdEl.textContent.trim()) {
+    // Always split into spans (reset if code changes)
+    const code = roomIdEl.textContent.trim();
+    if (
+      roomIdEl.childNodes.length !== code.length ||
+      Array.from(roomIdEl.childNodes).some((n, i) => n.textContent !== code[i])
+    ) {
+      roomIdEl.innerHTML = '';
+      for (let i = 0; i < code.length; i++) {
+        const span = document.createElement('span');
+        span.textContent = code[i];
+        span.style.display = 'inline-block';
+        roomIdEl.appendChild(span);
+      }
+    }
+    const spans = roomIdEl.querySelectorAll('span');
+    anime({
+      targets: spans,
+      translateY: [0, -22, 0],
+      rotateZ: [0, 360, 0],
+      scale: [1, 1.18, 1],
+      duration: 700,
+      delay: anime.stagger(80),
+      easing: 'easeOutElastic(1, .7)'
+    });
+  }
+}, 7000); 
