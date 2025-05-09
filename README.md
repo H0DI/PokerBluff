@@ -76,7 +76,7 @@ Be the last player with cards remaining by out-bluffing and outsmarting your opp
 ## 🖥️ Getting Started
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/poker-bluff.git
+git clone https://github.com/H0DI/poker-bluff.git
 cd poker-bluff
 npm install
 npm start
