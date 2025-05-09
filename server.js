@@ -40,9 +40,9 @@ function shuffleDeck(deck) {
   return deck;
 }
 
-function dealCards(deck, numPlayers) {
+function dealCards(deck, numPlayers, handSize = 5) {
   const hands = Array(numPlayers).fill().map(() => []);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < handSize; i++) {
     for (let j = 0; j < numPlayers; j++) {
       if (deck.length > 0) {
         hands[j].push(deck.pop());
@@ -119,7 +119,7 @@ function handExistsForBluff(hand, allCards) {
 io.on('connection', (socket) => {
   console.log('New client connected');
 
-  socket.on('createRoom', ({ roomId, playerName }) => {
+  socket.on('createRoom', ({ roomId, playerName, handSize, timerLength }) => {
     // Check if room already exists
     if (rooms.has(roomId)) {
       socket.emit('joinError', { message: 'Room already exists' });
@@ -132,10 +132,12 @@ io.on('connection', (socket) => {
       deck,
       currentTurn: socket.id,
       lastHand: null,
-      gameStarted: false
+      gameStarted: false,
+      handSize: handSize || 5,
+      timerLength: timerLength || 25
     });
     socket.join(roomId);
-    socket.emit('roomCreated', { roomId });
+    socket.emit('roomCreated', { roomId, handSize: handSize || 5, timerLength: timerLength || 25 });
 
     const room = rooms.get(roomId);
     if (!room.allPlayers) room.allPlayers = [];
@@ -178,7 +180,9 @@ io.on('connection', (socket) => {
     // Notify all players in the room
     io.to(roomId).emit('playerJoined', { 
       players: room.players.map(p => ({ id: p.id, name: p.name })),
-      roomId
+      roomId,
+      handSize: room.handSize,
+      timerLength: room.timerLength
     });
 
     if (!room.allPlayers) room.allPlayers = [];
@@ -191,7 +195,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (room && room.players.length >= 3) {
       room.gameStarted = true;
-      const hands = dealCards(room.deck, room.players.length);
+      const hands = dealCards(room.deck, room.players.length, room.handSize || 5);
       room.players.forEach((player, index) => {
         player.cards = hands[index];
       });
@@ -332,7 +336,7 @@ io.on('connection', (socket) => {
       }
       // Reshuffle and redeal
       room.deck = shuffleDeck(createDeck());
-      const hands = dealCards(room.deck, room.players.length);
+      const hands = dealCards(room.deck, room.players.length, room.handSize || 5);
       room.players.forEach((player, index) => {
         player.cards = hands[index].slice(0, player.cards.length); // Loser has one less card
       });

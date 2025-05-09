@@ -54,9 +54,11 @@ createRoomBtn.addEventListener('click', () => {
     if (hasJoinedRoom) return;
     
     playerName = playerNameInput.value.trim();
+    const handSize = parseInt(document.getElementById('setting-hand-size').value, 10) || 5;
+    const timerLength = parseInt(document.getElementById('setting-timer').value, 10) || 25;
     if (playerName) {
         const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-        socket.emit('createRoom', { roomId, playerName });
+        socket.emit('createRoom', { roomId, playerName, handSize, timerLength });
     } else {
         alert('Please enter your name');
     }
@@ -113,10 +115,12 @@ playAgainBtn.addEventListener('click', () => {
 });
 
 // Socket Event Handlers
-socket.on('roomCreated', ({ roomId }) => {
+socket.on('roomCreated', ({ roomId, handSize, timerLength }) => {
     currentRoom = roomId;
     hasJoinedRoom = true;
     document.getElementById('room-id-display').textContent = roomId;
+    // Show settings in waiting room
+    document.getElementById('waiting-room-settings').innerHTML = `Hand Size: <b>${handSize}</b> &nbsp;|&nbsp; Turn Timer: <b>${timerLength}s</b>`;
     showScreen(waitingRoom);
 });
 
@@ -128,12 +132,16 @@ socket.on('joinError', ({ message }) => {
     }
 });
 
-socket.on('playerJoined', ({ players, roomId }) => {
+socket.on('playerJoined', ({ players, roomId, handSize, timerLength }) => {
     hasJoinedRoom = true;
     if (roomId) currentRoom = roomId;
     document.getElementById('room-id-display').textContent = currentRoom;
     updatePlayersList(players, document.getElementById('waiting-players-list'));
     document.getElementById('player-count').textContent = players.length;
+    // Show settings in waiting room
+    if (handSize && timerLength) {
+        document.getElementById('waiting-room-settings').innerHTML = `Hand Size: <b>${handSize}</b> &nbsp;|&nbsp; Turn Timer: <b>${timerLength}s</b>`;
+    }
     startGameBtn.disabled = players.length < 3;
     showScreen(waitingRoom);
 });
