@@ -30,6 +30,7 @@ let selectedHandType = null;
 let selectedHandRank = null;
 let selectedHandRank2 = null;
 let lastDeclaredHand = null;
+let lastBluffInfo = null;
 const handTypes = [
     { key: 'high_card', label: 'High Card', ranks: 1 },
     { key: 'pair', label: 'Pair', ranks: 1 },
@@ -193,14 +194,12 @@ socket.on('handPlayed', ({ playerId, hand, nextTurn, players }) => {
 });
 
 socket.on('bluffResult', ({ handExists, callingPlayer, lastPlayer, remainingPlayers }) => {
+    lastBluffInfo = { handExists, callingPlayer, lastPlayer, remainingPlayers };
     const resultMessage = handExists ? 
         'Bluff call failed! The hand was real.' : 
         'Bluff call successful! The hand was fake.';
-    
     showBluffResult(resultMessage);
     updatePlayersList(remainingPlayers, document.getElementById('game-players-list'));
-    
-    // Update turn indicator after a short delay
     setTimeout(() => {
         const nextPlayer = remainingPlayers.find(p => p.cardsCount > 0);
         if (nextPlayer) {
@@ -222,21 +221,37 @@ socket.on('playerLeft', ({ players }) => {
     document.getElementById('player-count').textContent = players.length;
 });
 
-// Add a handler to reveal all cards and show bluff result
-socket.on('revealAllCards', ({ players, bluffResult }) => {
-    // Show all players' cards in a modal or overlay
+// Enhanced revealAllCards overlay
+socket.on('revealAllCards', ({ players, bluffResult, callingPlayer, lastPlayer }) => {
+    // Find bluff info if available
+    let callerName = '', calledName = '';
+    if (callingPlayer && lastPlayer) {
+        const caller = players.find(p => p.id === callingPlayer);
+        const called = players.find(p => p.id === lastPlayer);
+        callerName = caller ? caller.name : '';
+        calledName = called ? called.name : '';
+    }
     let revealDiv = document.createElement('div');
     revealDiv.className = 'reveal-cards-modal';
-    revealDiv.innerHTML = `<h2>All Cards Revealed</h2>` +
-        players.map(p => `<div><b>${p.name}:</b> ${p.cards.map(card => card.value + card.suit).join(' ')}</div>`).join('') +
-        `<div class='bluff-result-msg'>${bluffResult}</div>`;
+    revealDiv.innerHTML = `
+        <div class='reveal-cards-content'>
+            <h2>All Cards Revealed</h2>
+            <div class='bluff-players-row'><b class='bluff-caller-highlight'>${callerName}</b> called bluff on <b>${calledName}</b></div>
+            <div class='reveal-cards-list'>
+                ${players.map(p => `<div class='reveal-player-row'><span class='reveal-player-name'>${p.name}:</span> <span class='reveal-player-cards'>${p.cards.map(card => card.value + card.suit).join(' ')}</span></div>`).join('')}
+            </div>
+            <div class='bluff-result-msg ${bluffResult.includes('successful') ? 'bluff-success' : 'bluff-fail'}'>${bluffResult}</div>
+        </div>
+    `;
     document.body.appendChild(revealDiv);
     // Hide the claimed hand area after round ends
     lastPlay.classList.add('hidden');
     setTimeout(() => {
-        revealDiv.remove();
-        socket.emit('startNewRound', { roomId: currentRoom });
-    }, 5000);
+        if (document.body.contains(revealDiv)) {
+            revealDiv.remove();
+            socket.emit('startNewRound', { roomId: currentRoom });
+        }
+    }, 5300);
 });
 
 // Add a handler to clear UI and reset for new round

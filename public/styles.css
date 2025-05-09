@@ -499,15 +499,86 @@ button:disabled {
     padding: 2rem;
 }
 
-.reveal-cards-modal h2 {
-    margin-bottom: 1.5rem;
+.reveal-cards-content {
+    background: #222c;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    padding: 2.2rem 2.5rem 2rem 2.5rem;
+    min-width: 320px;
+    max-width: 95vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.reveal-cards-content h2 {
+    margin-bottom: 1.2rem;
+    font-size: 2rem;
+    color: #ffe066;
+    text-shadow: 0 2px 8px #222;
+}
+
+.bluff-players-row {
+    font-size: 1.1rem;
+    color: #ffe066;
+    margin-bottom: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.reveal-cards-list {
+    width: 100%;
+    margin-bottom: 1.2rem;
+}
+
+.reveal-player-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.reveal-player-name {
+    font-weight: 700;
+    color: #fff;
+    min-width: 70px;
+    display: inline-block;
+}
+
+.reveal-player-cards {
+    font-family: 'Poppins', monospace;
+    color: #ffe066;
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
 }
 
 .bluff-result-msg {
     margin-top: 2rem;
     font-size: 1.5rem;
     font-weight: bold;
-    color: #ffe066;
+    padding: 1.2rem 2rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.12);
+    color: #fff !important;
+}
+.bluff-success {
+    background: #27ae60 !important;
+    color: #fff !important;
+}
+.bluff-fail {
+    background: #e74c3c !important;
+    color: #fff !important;
+}
+.bluff-caller-highlight {
+    color: #ffe066 !important;
+    background: #217dbb;
+    padding: 0.1em 0.5em;
+    border-radius: 6px;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(44,62,80,0.10);
 }
 
 .eliminated-overlay {

@@ -267,6 +267,8 @@ io.on('connection', (socket) => {
       }
       // Gather all cards in play
       const allCards = room.players.flatMap(p => p.cards);
+      // --- Capture pre-elimination state ---
+      const preEliminationPlayers = room.players.map(p => ({ id: p.id, name: p.name, cards: [...p.cards] }));
       // Check if the declared hand exists in the pool
       const handExists = handExistsForBluff(room.lastHand.hand, allCards);
       let loser;
@@ -279,12 +281,14 @@ io.on('connection', (socket) => {
       }
       // Always track the loser for new round starter logic
       room.lastLoser = loser.id;
-      // Reveal all cards and show result
+      // Reveal all cards and show result (use pre-elimination state)
       const bluffResult = handExists ? 'Bluff call failed! The hand was real.' : 'Bluff call successful! The hand was fake.';
       const allPlayersBluff = room.allPlayers || room.players.map(p => ({ id: p.id, name: p.name, cardsCount: p.cards.length }));
       io.to(roomId).emit('revealAllCards', {
-        players: room.players.map(p => ({ name: p.name, cards: p.cards })),
-        bluffResult
+        players: preEliminationPlayers,
+        bluffResult,
+        callingPlayer: callingPlayer.id,
+        lastPlayer: lastPlayer ? lastPlayer.id : null
       });
       io.to(roomId).emit('bluffResult', {
         handExists,
