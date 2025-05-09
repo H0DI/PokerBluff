@@ -933,4 +933,91 @@ body.eliminated .player-area {
     border: 2.5px solid #217dbb;
     text-shadow: 0 2px 8px #217dbb33;
     transition: background 0.2s, color 0.2s;
+}
+
+#logo-flip-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.7rem;
+    perspective: 800px;
+    min-height: 90px;
+}
+.logo-flip {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 0.2rem;
+    cursor: pointer;
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    will-change: transform;
+    outline: none;
+    backface-visibility: hidden;
+}
+.logo-flip.flipped {
+    transform: rotateY(180deg);
+}
+#logo-flip-message {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #217dbb;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.5em 1.2em;
+    margin-top: 0.7em;
+    margin-bottom: 1.2em;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+    opacity: 0;
+    pointer-events: none;
+    position: relative;
+    z-index: 2;
+    transition: opacity 0.4s;
+    display: block;
+}
+#logo-flip-message.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+.logo-flip-3d.flipped ~ #logo-flip-message {
+    opacity: 1;
+    pointer-events: auto;
+}
+.logo-flip-3d:not(.flipped) ~ #logo-flip-message {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.logo-flip-3d {
+    width: 150px;
+    height: 150px;
+    position: relative;
+    perspective: 1200px;
+    margin: 0 auto 0.7rem auto;
+    cursor: pointer;
+}
+.logo-flip-3d .logo-flip {
+    width: 150px;
+    height: 150px;
+    position: absolute;
+    top: 0; left: 0;
+    backface-visibility: hidden;
+    transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+    will-change: transform;
+    outline: none;
+    z-index: 1;
+}
+.logo-flip-3d .logo-flip-front {
+    z-index: 2;
+    transform: rotateY(0deg);
+}
+.logo-flip-3d.flipped .logo-flip-front {
+    transform: rotateY(180deg);
+}
+.logo-flip-3d .logo-flip-back {
+    z-index: 1;
+    transform: rotateY(-180deg);
+}
+.logo-flip-3d.flipped .logo-flip-back {
+    transform: rotateY(0deg);
+    z-index: 3;
 } 

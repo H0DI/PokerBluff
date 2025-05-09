@@ -772,4 +772,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // Logo flip logic
+    const logo3d = document.querySelector('.logo-flip-3d');
+    const logoMsg = document.getElementById('logo-flip-message');
+    if (logo3d && logoMsg) {
+        let flipped = false;
+        function doFlip() {
+            flipped = !flipped;
+            if (flipped) {
+                logo3d.classList.add('flipped');
+                logoMsg.classList.remove('hidden');
+                logoMsg.classList.add('visible');
+                setTimeout(() => {
+                    logo3d.classList.remove('flipped');
+                    logoMsg.classList.remove('visible');
+                    logoMsg.classList.add('hidden');
+                    flipped = false;
+                }, 2000);
+            } else {
+                logo3d.classList.remove('flipped');
+                logoMsg.classList.remove('visible');
+                logoMsg.classList.add('hidden');
+            }
+        }
+        logo3d.addEventListener('click', doFlip);
+        logo3d.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') doFlip();
+        });
+    }
 }); 
