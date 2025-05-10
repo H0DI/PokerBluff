@@ -89,15 +89,21 @@ startGameBtn.addEventListener('click', () => {
 });
 
 playHandBtn.addEventListener('click', () => {
-    playHandSound();
+    if (!isMyTurn) return;
+    
     const typeObj = handTypes.find(t => t.key === selectedHandType);
     if (!typeObj) return;
-    if (typeObj.ranks === 1 && isMyTurn && selectedHandType && selectedHandRank) {
+
+    if (typeObj.ranks === 1 && selectedHandType && selectedHandRank) {
+        animatePlayHand();
+        playHandSound();
         socket.emit('playHand', {
             roomId: currentRoom,
             hand: { type: selectedHandType, rank: selectedHandRank }
         });
-    } else if (typeObj.ranks === 2 && isMyTurn && selectedHandType && selectedHandRank && selectedHandRank2 && selectedHandRank !== selectedHandRank2) {
+    } else if (typeObj.ranks === 2 && selectedHandType && selectedHandRank && selectedHandRank2 && selectedHandRank !== selectedHandRank2) {
+        animatePlayHand();
+        playHandSound();
         socket.emit('playHand', {
             roomId: currentRoom,
             hand: { type: selectedHandType, rank1: selectedHandRank, rank2: selectedHandRank2 }
@@ -106,6 +112,7 @@ playHandBtn.addEventListener('click', () => {
 });
 
 callBluffBtn.addEventListener('click', () => {
+    animateBluffCall();
     playBluffSound();
     socket.emit('callBluff', { roomId: currentRoom });
 });
@@ -149,6 +156,8 @@ socket.on('playerJoined', ({ players, roomId, handSize, timerLength }) => {
 socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
     if (roomId) currentRoom = roomId;
     showScreen(gameScreen);
+    // Kill any existing animations on the game screen logo
+    gsap.killTweensOf("#game-screen .logo-flip-3d");
     updatePlayersList(players, document.getElementById('game-players-list'));
     updateTurnIndicator(currentTurn);
     isMyTurn = socket.id === currentTurn;
@@ -176,9 +185,11 @@ socket.on('dealCards', ({ cards }) => {
     isEliminated = playerCards.length === 0;
     renderPlayerCards(true);
     updateButtonStates();
+    
     // Remove any previous eliminated message
     const oldOverlay = document.getElementById('eliminated-overlay');
     if (oldOverlay) oldOverlay.remove();
+    
     if (isEliminated) {
         // Hide hand selection if present
         const handSelection = document.querySelector('.hand-selection');
@@ -266,6 +277,7 @@ socket.on('gameOver', ({ winner }) => {
     showScreen(gameOverScreen);
     document.querySelector('.winner-announcement').textContent = 
         `Winner: ${winner.name}!`;
+    animateWinnerAnnouncement();
     stopTurnTimer();
 });
 
@@ -382,15 +394,34 @@ function updatePlayersList(players, targetList) {
     targetList.innerHTML = html;
 }
 
+function createCardElement(card) {
+    const cardElement = document.createElement('div');
+    cardElement.className = `card ${['♥', '♦'].includes(card.suit) ? 'red' : 'black'}`;
+    cardElement.textContent = `${card.value}${card.suit}`;
+    return cardElement;
+}
+
 function renderPlayerCards(isInitialDeal = false) {
-    playerCardsContainer.innerHTML = playerCards.map((card, index) => `
-        <div class="card ${['♥', '♦'].includes(card.suit) ? 'red' : 'black'}${isInitialDeal ? ' dealt' : ''}"
-             style="animation-delay: ${isInitialDeal ? index * 0.12 : 0}s"
-             data-index="${index}">
-            ${card.value}${card.suit}
-        </div>
-    `).join('');
-    // No click event listeners, cards are now static
+    const cardsContainer = document.getElementById('player-cards');
+    if (!cardsContainer) return;
+    
+    // Clear the container first
+    cardsContainer.innerHTML = '';
+    
+    // Create and append each card
+    playerCards.forEach((card, index) => {
+        const cardElement = createCardElement(card);
+        if (isInitialDeal) {
+            cardElement.classList.add('dealt');
+            cardElement.style.animationDelay = `${index * 0.12}s`;
+        }
+        cardsContainer.appendChild(cardElement);
+        
+        // Add animation for initial deal
+        if (isInitialDeal) {
+            animateCardDeal(cardElement, index);
+        }
+    });
 }
 
 function formatHand(hand) {
@@ -472,25 +503,34 @@ function updateTurnIndicator(playerId) {
     const player = document.querySelector(`.player-item[data-id="${playerId}"]`);
     const playerName = player ? player.querySelector('span').textContent : 'Unknown';
     currentPlayerSpan.textContent = playerName;
+    animateTurnIndicator();
 }
 
 function updateButtonStates() {
-    const typeObj = handTypes.find(t => t.key === selectedHandType);
     if (isEliminated) {
         playHandBtn.disabled = true;
         callBluffBtn.disabled = true;
         return;
     }
-    if (!typeObj) {
+
+    const typeObj = handTypes.find(t => t.key === selectedHandType);
+    
+    // Enable play hand button if it's player's turn and they have selected a valid hand
+    if (isMyTurn) {
+        if (!typeObj) {
+            playHandBtn.disabled = true;
+        } else if (typeObj.ranks === 1) {
+            playHandBtn.disabled = !(selectedHandType && selectedHandRank);
+        } else if (typeObj.ranks === 2) {
+            playHandBtn.disabled = !(selectedHandType && selectedHandRank && selectedHandRank2 && selectedHandRank !== selectedHandRank2);
+        }
+    } else {
         playHandBtn.disabled = true;
-    } else if (typeObj.ranks === 1) {
-        playHandBtn.disabled = !(isMyTurn && selectedHandType && selectedHandRank);
-    } else if (typeObj.ranks === 2) {
-        playHandBtn.disabled = !(isMyTurn && selectedHandType && selectedHandRank && selectedHandRank2 && selectedHandRank !== selectedHandRank2);
     }
+
     // Disable Call Bluff if there is no hand to bluff or you were the last to declare a hand
     const lastPlayerId = lastDeclaredHand && lastDeclaredHand.playerId;
-    callBluffBtn.disabled = !lastDeclaredHand || lastPlayerId === socket.id;
+    callBluffBtn.disabled = !lastDeclaredHand || lastPlayerId === socket.id || !isMyTurn;
 }
 
 function showBluffResult(message) {
@@ -556,6 +596,7 @@ function showHandSelection() {
             })()}
         </div>
     `;
+
     // Add event listeners for type
     handSelectionDiv.querySelectorAll('.hand-type-option').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -563,28 +604,31 @@ function showHandSelection() {
             selectedHandType = btn.dataset.type;
             selectedHandRank = null;
             selectedHandRank2 = null;
-            showHandSelection(); // re-render for selection highlight
-            updatePlayHandBtnState();
+            showHandSelection();
+            updateButtonStates();
         });
     });
+
     // Add event listeners for rank 1
     handSelectionDiv.querySelectorAll('.hand-rank-option').forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.disabled) return;
             selectedHandRank = btn.dataset.rank;
-            showHandSelection(); // re-render for selection highlight
-            updatePlayHandBtnState();
+            showHandSelection();
+            updateButtonStates();
         });
     });
+
     // Add event listeners for rank 2
     handSelectionDiv.querySelectorAll('.hand-rank2-option').forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.disabled) return;
             selectedHandRank2 = btn.dataset.rank;
-            showHandSelection(); // re-render for selection highlight
-            updatePlayHandBtnState();
+            showHandSelection();
+            updateButtonStates();
         });
     });
+
     // Back button
     const backBtn = handSelectionDiv.querySelector('.back-to-type');
     if (backBtn) {
@@ -593,10 +637,12 @@ function showHandSelection() {
             selectedHandRank = null;
             selectedHandRank2 = null;
             showHandSelection();
-            updatePlayHandBtnState();
+            updateButtonStates();
         });
     }
+
     document.querySelector('.center-area').appendChild(handSelectionDiv);
+    updateButtonStates();
 }
 
 function updatePlayHandBtnState() {
@@ -744,6 +790,182 @@ function stopTurnTimer() {
     clearTimeout(turnTimerTimeout);
     const timerDiv = document.getElementById('turn-timer');
     if (timerDiv) timerDiv.classList.add('hidden');
+}
+
+// GSAP Animations
+function initializeAnimations() {
+    // Welcome screen animations
+    gsap.from("#welcome-screen h1", {
+        duration: 1,
+        y: -50,
+        opacity: 0,
+        ease: "back.out(1.7)"
+    });
+
+    gsap.from(".form-container", {
+        duration: 0.8,
+        y: 30,
+        opacity: 0,
+        delay: 0.3,
+        ease: "power2.out"
+    });
+
+    // Logo animation - only on welcome screen
+    gsap.to("#welcome-screen .logo-flip-3d", {
+        rotationY: 360,
+        duration: 4,
+        ease: "power2.inOut",
+        repeat: -1,
+        yoyo: true,
+        repeatDelay: 2
+    });
+}
+
+// Card dealing animation
+function animateCardDeal(card, index) {
+    gsap.from(card, {
+        duration: 0.5,
+        x: -100,
+        y: -100,
+        rotation: -45,
+        opacity: 0,
+        delay: index * 0.1,
+        ease: "back.out(1.7)",
+        onComplete: () => {
+            gsap.to(card, {
+                scale: 1.1,
+                duration: 0.2,
+                yoyo: true,
+                repeat: 1
+            });
+        }
+    });
+}
+
+// Play hand animation
+function animatePlayHand() {
+    const cards = document.querySelectorAll('.card.selected');
+    cards.forEach((card, index) => {
+        gsap.to(card, {
+            duration: 0.5,
+            y: -50,
+            opacity: 0,
+            delay: index * 0.1,
+            ease: "power2.in",
+            onComplete: () => {
+                card.remove();
+            }
+        });
+    });
+}
+
+// Call bluff animation
+function animateBluffCall() {
+    const lastPlay = document.getElementById('last-play');
+    gsap.to(lastPlay, {
+        duration: 0.3,
+        scale: 1.2,
+        ease: "back.out(1.7)",
+        yoyo: true,
+        repeat: 1
+    });
+}
+
+// Winner announcement animation
+function animateWinnerAnnouncement() {
+    const announcement = document.querySelector('.winner-announcement');
+    gsap.from(announcement, {
+        duration: 1,
+        scale: 0,
+        opacity: 0,
+        ease: "elastic.out(1, 0.3)",
+        onComplete: () => {
+            gsap.to(announcement, {
+                duration: 0.5,
+                y: -20,
+                yoyo: true,
+                repeat: -1,
+                ease: "power1.inOut"
+            });
+        }
+    });
+}
+
+// Turn indicator animation
+function animateTurnIndicator() {
+    const indicator = document.querySelector('.turn-indicator');
+    gsap.to(indicator, {
+        duration: 0.5,
+        scale: 1.1,
+        backgroundColor: "#e74c3c",
+        ease: "power2.out",
+        yoyo: true,
+        repeat: 1
+    });
+}
+
+// Initialize animations when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initializeAnimations();
+});
+
+// Modify existing functions to include animations
+socket.on('dealCards', ({ cards }) => {
+    playerCards = cards;
+    const cardsContainer = document.getElementById('player-cards');
+    cardsContainer.innerHTML = '';
+    cards.forEach((card, index) => {
+        const cardElement = createCardElement(card);
+        cardsContainer.appendChild(cardElement);
+        animateCardDeal(cardElement, index);
+    });
+});
+
+// Modify the play hand button click handler
+playHandBtn.addEventListener('click', () => {
+    if (!isMyTurn) return;
+    
+    const typeObj = handTypes.find(t => t.key === selectedHandType);
+    if (!typeObj) return;
+
+    if (typeObj.ranks === 1 && selectedHandType && selectedHandRank) {
+        animatePlayHand();
+        playHandSound();
+        socket.emit('playHand', {
+            roomId: currentRoom,
+            hand: { type: selectedHandType, rank: selectedHandRank }
+        });
+    } else if (typeObj.ranks === 2 && selectedHandType && selectedHandRank && selectedHandRank2 && selectedHandRank !== selectedHandRank2) {
+        animatePlayHand();
+        playHandSound();
+        socket.emit('playHand', {
+            roomId: currentRoom,
+            hand: { type: selectedHandType, rank1: selectedHandRank, rank2: selectedHandRank2 }
+        });
+    }
+});
+
+// Modify the call bluff button click handler
+callBluffBtn.addEventListener('click', () => {
+    animateBluffCall();
+    playBluffSound();
+    socket.emit('callBluff', { roomId: currentRoom });
+});
+
+// Modify the game over handler
+socket.on('gameOver', ({ winner }) => {
+    showScreen(gameOverScreen);
+    document.querySelector('.winner-announcement').textContent = `Winner: ${winner.name}!`;
+    animateWinnerAnnouncement();
+    stopTurnTimer();
+});
+
+// Modify the turn indicator update
+function updateTurnIndicator(playerId) {
+    const player = document.querySelector(`.player-item[data-id="${playerId}"]`);
+    const playerName = player ? player.querySelector('span').textContent : 'Unknown';
+    currentPlayerSpan.textContent = playerName;
+    animateTurnIndicator();
 }
 
 // Initialize
